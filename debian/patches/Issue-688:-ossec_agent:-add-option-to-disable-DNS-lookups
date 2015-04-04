@@ -1,0 +1,80 @@
+Description: <short summary of the patch>
+ TODO: Put a short summary on the line above and replace this paragraph
+ with a longer explanation of this change. Complete the meta-information
+ with other relevant fields (see below for details). To make it easier, the
+ information below has been extracted from the changelog. Adjust it or drop
+ it.
+ .
+ securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion5) precise; urgency=low
+ .
+   * Issue 688: ossec_agent: add option to disable DNS lookups
+Author: Doug Burks <doug.burks@gmail.com>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: http://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- securityonion-sguil-agent-ossec-20120726.orig/etc/nsm/ossec/README
++++ securityonion-sguil-agent-ossec-20120726/etc/nsm/ossec/README
+@@ -1,4 +1,4 @@
+-This is a very simple example of an OSSEC agent for Sguil 0.7.0.  It reads
++This is a very simple example of an OSSEC agent for Sguil 0.9.0.  It reads
+ the OSSEC alert log (/var/ossec/logs/alerts/alerts.log) looking for events
+ with a priority greater than or equal to 7 (use the -p option to modify this).
+ When it finds such an alert, it sends it to the Sguil server as a Sguil alert.
+--- securityonion-sguil-agent-ossec-20120726.orig/etc/nsm/ossec/ossec_agent.tcl
++++ securityonion-sguil-agent-ossec-20120726/etc/nsm/ossec/ossec_agent.tcl
+@@ -2,7 +2,7 @@
+ # Run tcl from users PATH \
+ exec tclsh "$0" "$@"
+ 
+-# OSSEC agent for Sguil 0.8.0.  Based on the "example_agent.tcl" code
++# OSSEC agent for Sguil 0.9.0.  Based on the "example_agent.tcl" code
+ # distributed with sguil.  
+ # 
+ # Portions Copyright (C) 2007 David J. Bianco <david@vorant.com>
+@@ -80,7 +80,7 @@ proc bgerror { errorMsg } {
+ # Open a file to monitor or even a socket to receive data from.
+ proc InitAgent {} {
+ 
+-    global DEBUG FILENAME MIN_PRIORITY  DNS DEFAULT_DNS_DOMAIN
++    global DEBUG FILENAME MIN_PRIORITY  DNS DEFAULT_DNS_DOMAIN USE_DNS
+     global nDate sig_id priority message src_ip user hexPayload payload agent
+ 
+     set nDate ""
+@@ -132,7 +132,7 @@ proc ReadFile { fileID } {
+ 	catch { [gets $fileID line] tmpError } {
+ 	    
+ 	    puts "Error processing file."
+-	    if { [info exits tmpError] } { puts "$tmpError" }
++	    if { [info exists tmpError] } { puts "$tmpError" }
+ 	    catch {close $fileID} 
+ 	    exit 1
+ 	    
+@@ -149,7 +149,7 @@ proc ReadFile { fileID } {
+ #
+ proc ResolveHostname { hostName } {
+ 
+-   global DEFAULT_DNS_DOMAIN 
++   global DEFAULT_DNS_DOMAIN USE_DNS
+ 
+    set retVal $hostName
+ 
+@@ -166,7 +166,7 @@ proc ResolveHostname { hostName } {
+ 	^::ffff:
+    } $retVal ""]
+ 
+-   if {$retVal == "(none)" || $retVal == "UNKNOWN"} {
++   if {$retVal == "(none)" || $retVal == "UNKNOWN" || $USE_DNS == "0"} {
+ 	set retVal "0.0.0.0"
+    } elseif { [regexp {(?x)
+ 	[a-zA-Z\-]

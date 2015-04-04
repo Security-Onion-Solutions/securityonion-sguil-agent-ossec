@@ -1,0 +1,15 @@
+Source: securityonion-sguil-agent-ossec
+Section: net
+Priority: extra
+Maintainer: Doug Burks <doug.burks@gmail.com>
+Build-Depends: debhelper (>= 8.0.0)
+Standards-Version: 3.9.3
+Homepage: http://www.vorant.com
+#Vcs-Git: git://git.debian.org/collab-maint/securityonion-sguil-agent-ossec.git
+#Vcs-Browser: http://git.debian.org/?p=collab-maint/securityonion-sguil-agent-ossec.git;a=summary
+
+Package: securityonion-sguil-agent-ossec
+Architecture: all
+Depends: ${misc:Depends}, tcl8.5 (>= 8.5.11-1ubuntu1securityonion1), tclx, tcllib, tcl-tls
+Description: OSSEC agent for Sguil
+ Transmits OSSEC HIDS alerts to Sguil database

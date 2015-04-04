@@ -1,0 +1,41 @@
+securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion7) precise; urgency=low
+
+  * fix if statement 
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 05 Feb 2015 09:22:15 -0500
+
+securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion6) precise; urgency=low
+
+  * remove old /etc/nsm/ossec/ossec_agent.tcl 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 03 Feb 2015 21:43:18 -0500
+
+securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion5) precise; urgency=low
+
+  * Issue 688: ossec_agent: add option to disable DNS lookups
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 03 Feb 2015 21:16:40 -0500
+
+securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion4) precise; urgency=low
+
+  * Force TLSv1 for all communication 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sun, 05 Oct 2014 11:08:55 -0400
+
+securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion3) precise; urgency=low
+
+  * bump version to 0.9.0 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 04 Oct 2014 16:08:02 -0400
+
+securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion2) precise; urgency=low
+
+  * add tcl dependencies
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 15 Nov 2012 13:33:54 -0500
+
+securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion1) precise; urgency=low
+
+  * Initial release
+
+ -- Doug Burks <doug.burks@gmail.com>  Thu, 26 Jul 2012 17:21:54 -0400

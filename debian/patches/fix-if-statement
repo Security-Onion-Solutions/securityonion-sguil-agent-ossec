@@ -1,0 +1,54 @@
+Description: <short summary of the patch>
+ TODO: Put a short summary on the line above and replace this paragraph
+ with a longer explanation of this change. Complete the meta-information
+ with other relevant fields (see below for details). To make it easier, the
+ information below has been extracted from the changelog. Adjust it or drop
+ it.
+ .
+ securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion7) precise; urgency=low
+ .
+   * fix if statement
+Author: Doug Burks <doug.burks@gmail.com>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: http://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- securityonion-sguil-agent-ossec-20120726.orig/etc/nsm/ossec/ossec_agent.tcl
++++ securityonion-sguil-agent-ossec-20120726/etc/nsm/ossec/ossec_agent.tcl
+@@ -166,13 +166,13 @@ proc ResolveHostname { hostName } {
+ 	^::ffff:
+    } $retVal ""]
+ 
+-   if {$retVal == "(none)" || $retVal == "UNKNOWN" || $USE_DNS == "0"} {
++   if {$retVal == "(none)" || $retVal == "UNKNOWN" } {
+ 	set retVal "0.0.0.0"
+    } elseif { [regexp {(?x)
+ 	[a-zA-Z\-]
+    } $retVal] } {
+ 	# This must be a hostname.  Try to look it up in DNS
+-       if { [catch {
++       if { $USE_DNS && [catch {
+ 	   set tok [dns::resolve $retVal]
+ 	   dns::wait $tok
+ 	   if { [dns::status $tok] == "error" } {
+@@ -187,7 +187,9 @@ proc ResolveHostname { hostName } {
+ 	   # If anything went wrong with the DNS lookup, return the
+ 	   # default value.
+ 	   set retVal "0.0.0.0"
+-       }
++       } else {
++		set retVal "0.0.0.0"
++	}
+    }
+ 
+ 
