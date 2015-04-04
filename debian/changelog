@@ -1,3 +1,9 @@
+securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion8) precise; urgency=low
+
+  * Issue 705: ossec_agent: improvements from Brian Kellogg 
+
+ -- Doug Burks <doug.burks@gmail.com>  Sat, 04 Apr 2015 08:31:13 -0400
+
 securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion7) precise; urgency=low
 
   * fix if statement 

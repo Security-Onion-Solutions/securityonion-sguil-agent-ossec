@@ -1,0 +1,568 @@
+Description: <short summary of the patch>
+ TODO: Put a short summary on the line above and replace this paragraph
+ with a longer explanation of this change. Complete the meta-information
+ with other relevant fields (see below for details). To make it easier, the
+ information below has been extracted from the changelog. Adjust it or drop
+ it.
+ .
+ securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion8) precise; urgency=low
+ .
+   * Issue 705: ossec_agent: improvements from Brian Kellogg
+Author: Doug Burks <doug.burks@gmail.com>
+
+---
+The information above should follow the Patch Tagging Guidelines, please
+checkout http://dep.debian.net/deps/dep3/ to learn about the format. Here
+are templates for supplementary fields that you might want to add:
+
+Origin: <vendor|upstream|other>, <url of original patch>
+Bug: <url in upstream bugtracker>
+Bug-Debian: http://bugs.debian.org/<bugnumber>
+Bug-Ubuntu: https://launchpad.net/bugs/<bugnumber>
+Forwarded: <no|not-needed|url proving that it has been forwarded>
+Reviewed-By: <name and email of someone who approved the patch>
+Last-Update: <YYYY-MM-DD>
+
+--- /dev/null
++++ securityonion-sguil-agent-ossec-20120726/README.md
+@@ -0,0 +1 @@
++# securityonion-sguil-agent-ossec
+--- securityonion-sguil-agent-ossec-20120726.orig/etc/nsm/ossec/ossec_agent.tcl
++++ securityonion-sguil-agent-ossec-20120726/etc/nsm/ossec/ossec_agent.tcl
+@@ -3,8 +3,8 @@
+ exec tclsh "$0" "$@"
+ 
+ # OSSEC agent for Sguil 0.9.0.  Based on the "example_agent.tcl" code
+-# distributed with sguil.  
+-# 
++# distributed with sguil.
++#
+ # Portions Copyright (C) 2007 David J. Bianco <david@vorant.com>
+ #
+ #
+@@ -26,13 +26,13 @@ exec tclsh "$0" "$@"
+ 
+ # This is a template to use for building your own generic agents
+ # for sending alerts to a Sguil server. I tried to document with
+-# comments where appropriate. 
++# comments where appropriate.
+ #
+ # This template will monitor your /var/log/secure file for sshd
+ # systlog messages and forward them to sguil.
+ #
+ 
+-# Make sure you define the version this agent will work with. 
++# Make sure you define the version this agent will work with.
+ set VERSION "SGUIL-0.9.0"
+ 
+ # Define the agent type here. It will be used to register the agent with sguild.
+@@ -81,7 +81,7 @@ proc bgerror { errorMsg } {
+ proc InitAgent {} {
+ 
+     global DEBUG FILENAME MIN_PRIORITY  DNS DEFAULT_DNS_DOMAIN USE_DNS
+-    global nDate sig_id priority message src_ip user hexPayload payload agent
++    global nDate sig_id priority message src_ip user hexPayload payload agent src_port dst_port
+ 
+     set nDate ""
+     set sig_id ""
+@@ -92,23 +92,25 @@ proc InitAgent {} {
+     set hexPayload ""
+     set payload ""
+     set agent ""
+-    
++    set src_port ""
++    set dst_port ""
++
+     if { ![info exists MIN_PRIORITY] } {
+-	set MIN_PRIORITY 7
++        set MIN_PRIORITY 7
+     }
+ 
+     # Configure the DNS resolver
+-    dns::configure -nameserver $DNS 
++    dns::configure -nameserver $DNS
+ 
+-    if { ![info exists FILENAME] } { 
+-	# Set a reasonable default
++    if { ![info exists FILENAME] } {
++        # Set a reasonable default
+         set FILENAME /var/ossec/logs/alerts/alerts.log
+     }
+     if { ![file readable $FILENAME] } {
+         puts "Error: Unable to read $FILENAME"
+         exit 1
+     }
+-    
++
+     # USe of the -F (to auto-reopen the file when it rotates at night)
+     # is not portable beyond GNU tail!
+     if [catch {open "| tail -n 0 -F $FILENAME" r} fileID] {
+@@ -118,8 +120,8 @@ proc InitAgent {} {
+ 
+     fconfigure $fileID -buffering line
+     # Proc ReadFile will be called as new lines are appended.
+-#    fileevent $fileID readable [list ReadFile $fileID]
+-
++    #fileevent $fileID readable [list ReadFile $fileID]
++#    vwait forever
+     ReadFile $fileID
+ }
+ 
+@@ -127,20 +129,18 @@ proc InitAgent {} {
+ # ReadFile: Read and process each new line.
+ #
+ proc ReadFile { fileID } {
++    while { ! [eof $fileID] } {
++       catch { [gets $fileID line] tmpError } {
++
++           puts "Error processing file."
++           if { [info exists tmpError] } { puts "$tmpError" }
++           catch {close $fileID}
++           exit 1
+ 
+-    while { ! [eof $fileID] } { 
+-	catch { [gets $fileID line] tmpError } {
+-	    
+-	    puts "Error processing file."
+-	    if { [info exists tmpError] } { puts "$tmpError" }
+-	    catch {close $fileID} 
+-	    exit 1
+-	    
+-	}
++       }
+         # I prefer to process the data in a different proc.
+         ProcessData $line
+     }
+-
+ }
+ 
+ #
+@@ -154,42 +154,42 @@ proc ResolveHostname { hostName } {
+    set retVal $hostName
+ 
+    if { ! [regexp {(?x)
+-	            \.
++                    \.
+            } $retVal ] } {
+-	set retVal "$retVal.$DEFAULT_DNS_DOMAIN"
++        set retVal "$retVal.$DEFAULT_DNS_DOMAIN"
+    }
+ 
+    # This could be a IPv6-formatted IPv4 address
+-   # (e.g., "::ffff:192.168.1.1").  If so, strip off the 
++   # (e.g., "::ffff:192.168.1.1").  If so, strip off the
+    # "::ffff:" prefix, because sguild can't deal with it.
+    set retVal [ regsub {(?x)
+-	^::ffff:
++        ^::ffff:
+    } $retVal ""]
+ 
+    if {$retVal == "(none)" || $retVal == "UNKNOWN" } {
+-	set retVal "0.0.0.0"
++        set retVal "0.0.0.0"
+    } elseif { [regexp {(?x)
+-	[a-zA-Z\-]
++        [a-zA-Z\-]
+    } $retVal] } {
+-	# This must be a hostname.  Try to look it up in DNS
++        # This must be a hostname.  Try to look it up in DNS
+        if { $USE_DNS && [catch {
+-	   set tok [dns::resolve $retVal]
+-	   dns::wait $tok
+-	   if { [dns::status $tok] == "error" } {
+-	       set retVal "0.0.0.0"
+-	   } else {
+-	       set retVal [dns::address $tok]
+-	   }
+-	   # Don't leave crap laying around for this request.  
+-	   dns::cleanup $tok
++           set tok [dns::resolve $retVal]
++           dns::wait $tok
++           if { [dns::status $tok] == "error" } {
++               set retVal "0.0.0.0"
++           } else {
++               set retVal [dns::address $tok]
++           }
++           # Don't leave crap laying around for this request.
++           dns::cleanup $tok
+        }]
+-	} {
+-	   # If anything went wrong with the DNS lookup, return the
+-	   # default value.
+-	   set retVal "0.0.0.0"
++        } {
++           # If anything went wrong with the DNS lookup, return the
++           # default value.
++           set retVal "0.0.0.0"
+        } else {
+-		set retVal "0.0.0.0"
+-	}
++                set retVal "0.0.0.0"
++        }
+    }
+ 
+ 
+@@ -201,143 +201,157 @@ proc ResolveHostname { hostName } {
+ #
+ proc ProcessData { line } {
+ 
+-    global HOSTNAME IPADDR AGENT_ID NEXT_EVENT_ID AGENT_TYPE GEN_ID 
++    global HOSTNAME IPADDR AGENT_ID NEXT_EVENT_ID AGENT_TYPE GEN_ID
+     global MIN_PRIORITY
+     global sguildSocketID DEBUG
+-    global nDate sig_id priority message src_ip user hexPayload payload agent
++    global nDate sig_id priority message src_ip user hexPayload payload agent src_port dst_port
+ 
+     if { [regexp {(?x)
+-	^\*\*\s+Alert
++        ^\*\*\s+Alert
+     } $line] } {
+ 
+-	# Make some last minute adjustments to format everything properly
+-	if {$src_ip == "(none)" || \
+-	    $src_ip == "UNKNOWN" || \
+-	    $src_ip == ""} { set src_ip "0.0.0.0" }
+-
+-	if {$agent == "(none)" || \
+-	    $agent == "UNKNOWN" || \
+-	    $agent == ""} { set agent "0.0.0.0" }
+-
+-	# If we meet the minimum priority threshold to issue an alert,
+-	# do it here.  
+-	if { $priority >= $MIN_PRIORITY } {
+- 	    if {$DEBUG} {
+- 		puts "Found Alert: "
+- 		puts "\ttime: $nDate"
+- 		puts "\tAgent: $agent"
+- 		puts "\tSigID: $sig_id"
+- 		puts "\tPriority: $priority"
+- 		puts "\tSrcIP: $src_ip"
+- 		puts "\tUser: $user"
+- 		puts "\tMessage: $message"
+- 		puts "\tPayload: $payload"
+- 		puts "\n"
+- 	    }
+-
+-
+-
+-	    set event [list GenericEvent 0 $priority {} \
+-			   $HOSTNAME $nDate $AGENT_ID $NEXT_EVENT_ID \
+-			   $NEXT_EVENT_ID [string2hex $message] \
+-			   $src_ip $agent {} {} {} \
+-			   $GEN_ID $sig_id 1 [string2hex $payload]]
+-	    
+-	    # Send the event to sguild
+-	    if { $DEBUG } { puts "Sending: $event" }
+-	    while { [catch {puts $sguildSocketID $event} tmpError] } {
+-		
+-		# Send to sguild failed
+-		if { $DEBUG } { puts "Send Failed: $tmpError" }
+-		
+-		# Close open socket
+-		catch {close $sguildSocketID}
+-		
+-		# Reconnect loop
+-		while { ![ConnectToSguilServer] } { after 15000 }
+-		
+-	    }
+-	    
+-	    # Sguild response should be "ConfirmEvent eventID"
+-	    if { [catch {gets $sguildSocketID response} readError] } {
+-		
+-		# Couldn't read from sguild
+-		if { $DEBUG } { puts "Read Failed: $readError" }
+-		
+-		# Close open socket
+-		catch {close $sguildSocketID}
+-		
+-		# Reconnect loop
+-		while { ![ConnectToSguilServer] } { after 15000 }
+-		return 0
+-		
+-	    }
+-	    if {$DEBUG} { puts "Received: $response" }
+-	    
+-	    if { [llength $response] != 2 || [lindex $response 0] != "ConfirmEvent" || [lindex $response 1] != $NEXT_EVENT_ID } {
+-		
+-		# Send to sguild failed
+-		if { $DEBUG } { puts "Recv Failed" }
+-		
+-		# Close open socket
+-		catch {close $sguildSocketID}
+-		
+-		# Reconnect loop
+-		while { ![ConnectToSguilServer] } { after 15000 }
+-		return 0
+-		
+-	    }
+-	    
+-	    # Success! Increment the next event id
+-	    incr NEXT_EVENT_ID
+-	}
+-
+-	# Now clear all these vars for the next event
+-	set nDate ""
+-	set sig_id ""
+-	set priority ""
+-	set src_ip ""
+-	set user ""
+-	set message ""
+-	set payload ""
+-	set hexPayload ""
+-
+-
+-    } else {  
+-	# See if this looks like a date line (the alert header, not the
+-	# syslog line, which also begins with a date)
+-	if { [regexp {(?x)    
+-#	    ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(.*)->
+-	  ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(\(.*\)\s+)*(.*)->
+-	} $line MatchVar year month day time placeholder agent] } {
+-	    set nDate [clock format [clock scan "$day $month $year $time" ] -gmt true -f "%Y-%m-%d %T"]
+-	    # Ok, this is confusing, but the regexp can return either one 
+-	    # or two variables, depending on the format of the input line.
+-	    # if the line is from a windows agent, it will usually contain
+-	    # "(host) X.X.X.X", but if it's from some other agent, it will
+-	    # usually just be one field (either a hostname or an IP address,
+-	    # depending on the log source).  In either case, the $agent
+-	    # variable ends up holding the correct value for our purposes.
+-	    set agent [ResolveHostname $agent]
+-	} elseif { [regexp {(?x)
+-	             ^Rule:\s+(\d+)\s+\(level\s+(\d+)\)\s+->\s+'(.*)'
+-	} $line MatchVar sig_id priority message ] } {
+-	    set message "\[[string toupper $AGENT_TYPE]\] $message"
+-	} elseif { [regexp {(?x)
+- 	              ^User:\s+(.*)
+-	} $line MatchVar user ] } {
+-	    # We really don't have anything to do here, since we matched all
+-	    # our variables directly in the conditional for this block	
+-	} elseif { [regexp {(?x)
+-    	              ^Src\s+IP:\s+(.*)
+-	} $line MatchVar src_ip ] } {
+-	    set src_ip [ResolveHostname $src_ip]
+-	} else {
+-	    # If we haven't matched anything specific in the OSSEC alert
+-	    # structure, this must be a copy of the original alert.
+-	    # Add it to our payload.
+-	    append payload "$line\n"
+-	}
++        # Make some last minute adjustments to format everything properly
++        if {$src_ip == "(none)" || \
++            $src_ip == "UNKNOWN" || \
++            $src_ip == ""} { set src_ip "0.0.0.0" }
++
++        if {$agent == "(none)" || \
++            $agent == "UNKNOWN" || \
++            $agent == ""} { set agent "0.0.0.0" }
++
++        # If we meet the minimum priority threshold to issue an alert,
++        # do it here.
++        if { $priority >= $MIN_PRIORITY } {
++            if {$DEBUG} {
++                puts "Found Alert: "
++                puts "\ttime: $nDate"
++                puts "\tAgent: $agent"
++                puts "\tSigID: $sig_id"
++                puts "\tPriority: $priority"
++                puts "\tSrcIP: $src_ip"
++                puts "\tUser: $user"
++                puts "\tMessage: $message"
++                puts "\tPayload: $payload"
++                puts "\tSrcPort: $src_port"
++                puts "\tDstPort: $dst_port"
++                puts "\n"
++            }
++
++            set event [list GenericEvent 0 $priority {} \
++                           $HOSTNAME $nDate $AGENT_ID $NEXT_EVENT_ID \
++                           $NEXT_EVENT_ID [string2hex $message] \
++                           $src_ip $agent {} $src_port $dst_port \
++                           $GEN_ID $sig_id 1 [string2hex $payload]]
++
++            # Send the event to sguild
++            if { $DEBUG } { puts "Sending: $event" }
++            while { [catch {puts $sguildSocketID $event} tmpError] } {
++
++                # Send to sguild failed
++                if { $DEBUG } { puts "Send Failed: $tmpError" }
++
++                # Close open socket
++                catch {close $sguildSocketID}
++
++                # Reconnect loop
++                while { ![ConnectToSguilServer] } { after 15000 }
++
++            }
++
++            # Sguild response should be "ConfirmEvent eventID"
++            if { [catch {gets $sguildSocketID response} readError] } {
++
++                # Couldn't read from sguild
++                if { $DEBUG } { puts "Read Failed: $readError" }
++
++                # Close open socket
++                catch {close $sguildSocketID}
++
++                # Reconnect loop
++                while { ![ConnectToSguilServer] } { after 15000 }
++                return 0
++
++            }
++            if {$DEBUG} { puts "Received: $response" }
++
++            if { [llength $response] != 2 || [lindex $response 0] != "ConfirmEvent" || [lindex $response 1] != $NEXT_EVENT_ID } {
++
++                # Send to sguild failed
++                if { $DEBUG } { puts "Recv Failed" }
++
++                # Close open socket
++                catch {close $sguildSocketID}
++
++                # Reconnect loop
++                while { ![ConnectToSguilServer] } { after 15000 }
++                return 0
++
++            }
++
++            # Success! Increment the next event id
++            incr NEXT_EVENT_ID
++        }
++
++        # Now clear all these vars for the next event
++        set nDate ""
++        set sig_id ""
++        set priority ""
++        set src_ip ""
++        set user ""
++        set message ""
++        set payload ""
++        set hexPayload ""
++        set src_port ""
++        set dst_port ""
++
++    } else {
++        # See if this looks like a date line (the alert header, not the
++        # syslog line, which also begins with a date)
++        # look for logs sent by a OSSEC agent that should be treated as syslogs; e.g. Malwarebytes logs
++        if { ([regexp {(?x)
++#           ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(.*)->
++          ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(\(.*\)\s+)*(.*)->
++        } $line MatchVar year month day time placeholder agent]) } {
++            set nDate [clock format [clock scan "$day $month $year $time" ] -gmt true -f "%Y-%m-%d %T"]
++            # Ok, this is confusing, but the regexp can return either one
++            # or two variables, depending on the format of the input line.
++            # if the line is from a windows agent, it will usually contain
++            # "(host) X.X.X.X", but if it's from some other agent, it will
++            # usually just be one field (either a hostname or an IP address,
++            # depending on the log source).  In either case, the $agent
++            # variable ends up holding the correct value for our purposes.
++            set agent [ResolveHostname $agent]
++        } elseif { [regexp {(?x)
++                     ^Rule:\s+(\d+)\s+\(level\s+(\d+)\)\s+->\s+'(.*)'
++        } $line MatchVar sig_id priority message ] } {
++            set message "\[[string toupper $AGENT_TYPE]\] $message"
++        } elseif { [regexp {(?x)
++                      ^User:\s+(.*)
++        } $line MatchVar user ] } {
++            # We really don't have anything to do here, since we matched all
++            # our variables directly in the conditional for this block
++        } elseif { [regexp {(?x)
++                      ^Src\s+IP:\s+(.*)
++        } $line MatchVar src_ip ] } {
++            set src_ip [ResolveHostname $src_ip]
++        } elseif { [regexp {(?x)
++                      ^Src\s+Port:\s+(\d+)
++        } $line MatchVar src_port ] } {
++            # nothing to do regexp filled the var
++        } elseif { [regexp {(?x)
++                      ^Dst\s+IP:\s+(.*)
++        } $line MatchVar agent ] } {
++            set agent [ResolveHostname $agent]
++        } elseif { [regexp {(?x)
++                      ^Dst\s+Port:\s+(\d+)
++        } $line MatchVar dst_port ] } {
++            # nothing to do regexp filled the var
++        } else {
++            # If we haven't matched anything specific in the OSSEC alert
++            # structure, this must be a copy of the original alert.
++            # Add it to our payload.
++            append payload "$line\n"
++        }
+ 
+     }
+ }
+@@ -409,20 +423,20 @@ proc ConnectToSguilServer {} {
+     # Register the agent with sguild.
+     set msg [list RegisterAgent $AGENT_TYPE $HOSTNAME $NET_GROUP]
+     if { $DEBUG } { puts "Sending: $msg" }
+-    if { [catch { puts $sguildSocketID $msg } tmpError] } { 
+- 
++    if { [catch { puts $sguildSocketID $msg } tmpError] } {
++
+         # Send failed
+         puts "Error: $tmpError"
+-        catch {close $sguildSocketID} 
++        catch {close $sguildSocketID}
+         return 0
+-    
++
+     }
+ 
+     # Read reply from sguild.
+     if { [eof $sguildSocketID] || [catch {gets $sguildSocketID data}] } {
+- 
++
+         # Read failed.
+-        catch {close $sockID} 
++        catch {close $sockID}
+         return 0
+ 
+     }
+@@ -443,7 +457,7 @@ proc ConnectToSguilServer {} {
+     set NEXT_EVENT_ID [expr [lindex $data 5] + 1]
+ 
+     return 1
+-    
++
+ }
+ 
+ proc Daemonize {} {
+@@ -532,10 +546,10 @@ proc string2hex { s } {
+ ################### MAIN ###########################
+ 
+ # Standard options are below. If you need to add more switches,
+-# put them here. For the sshd example, we add -f filename 
++# put them here. For the sshd example, we add -f filename
+ # to define which file we are monitoring and -i ip to define
+ # the dst ip we are monitoring.
+-# 
++#
+ 
+ # First make sure we can lod the DNS resolver library from tcllib
+ if [catch {package require dns 1.3.1} dnsVersion] {
+@@ -564,9 +578,9 @@ foreach arg $argv {
+                 -O { set state sslpath }
+                 -f { set state filename }
+                 -i { set state ipaddr }
+-		-p { set state minpri }
+-		-d { set state dns }
+-		-n { set state defaultdomain }
++                -p { set state minpri }
++                -d { set state dns }
++                -n { set state defaultdomain }
+                 default { DisplayUsage $argv0 }
+ 
+             }
+@@ -577,9 +591,9 @@ foreach arg $argv {
+         sslpath  { set TLS_PATH $arg; set state flag }
+         filename { set FILENAME $arg; set state flag }
+         ipaddr   { set IPADDR $arg; set state flag }
+-	minpri   { set MIN_PRIORITY $arg; set state flag }
+-	dns      { set DNS $arg; set state flag }
+-	defaultdomain { set DEFAULT_DNS_DOMAIN; set state flag }
++        minpri   { set MIN_PRIORITY $arg; set state flag }
++        dns      { set DNS $arg; set state flag }
++        defaultdomain { set DEFAULT_DNS_DOMAIN; set state flag }
+         default { DisplayUsage $argv0 }
+ 
+     }

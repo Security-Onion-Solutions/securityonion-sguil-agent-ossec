@@ -2,3 +2,4 @@ bump-version-to-0.9.0
 Force-TLSv1-for-all-communication
 Issue-688:-ossec_agent:-add-option-to-disable-DNS-lookups
 fix-if-statement
+Issue-705:-ossec_agent:-improvements-from-Brian-Kellogg
