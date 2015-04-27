@@ -188,8 +188,8 @@ proc ResolveHostname { hostName } {
            # default value.
            set retVal "0.0.0.0"
        } else {
-                set retVal "0.0.0.0"
-        }
+           set retVal "0.0.0.0"
+       }
    }
 
 
@@ -200,15 +200,93 @@ proc ResolveHostname { hostName } {
 # ProcessData: Here we actually process the line
 #
 proc ProcessData { line } {
+    global AGENT_TYPE
+    global nDate sig_id priority message src_ip user hexPayload payload agent src_port dst_port
 
+    # We do not care about the first line of an alert so find it and forget it
+    if { [regexp {(?x) ^\*\*\s+Alert} $line] } {
+        # nothing to do as we ignore this line
+
+        # See if this looks like a date line (the alert header, not the
+        # syslog line, which also begins with a date)
+        # look for logs sent by a OSSEC agent that should be treated as syslogs; e.g. Malwarebytes logs
+    } elseif { ([regexp {(?x)
+#           ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(.*)->
+#         ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(\(.*\)\s+)*(.*)->
+                 ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(\(.*\)\s+)*(\S+)->
+                 } $line MatchVar year month day time placeholder agent]) } {
+        set nDate [clock format [clock scan "$day $month $year $time" ] -gmt true -f "%Y-%m-%d %T"]
+        # Ok, this is confusing, but the regexp can return either one
+        # or two variables, depending on the format of the input line.
+        # if the line is from a windows agent, it will usually contain
+        # "(host) X.X.X.X", but if it's from some other agent, it will
+        # usually just be one field (either a hostname or an IP address,
+        # depending on the log source).  In either case, the $agent
+        # variable ends up holding the correct value for our purposes.
+        set agent [ResolveHostname $agent]
+    } elseif { [regexp {(?x)
+                 ^Rule:\s+(\d+)\s+\(level\s+(\d+)\)\s+->\s+'(.*)'
+                 } $line MatchVar sig_id priority message ] } {
+        set message "\[[string toupper $AGENT_TYPE]\] $message"
+    } elseif { [regexp {(?x)
+                 ^User:\s+(.*)
+                } $line MatchVar user ] } {
+        # We really don't have anything to do here, since we matched all
+        # our variables directly in the conditional for this block
+    } elseif { [regexp {(?x)
+                 ^Src\s+IP:\s+(.*)
+                 } $line MatchVar src_ip ] } {
+        set src_ip [ResolveHostname $src_ip]
+    } elseif { [regexp {(?x)
+                 ^Src\s+Port:\s+(\d+)
+                 } $line MatchVar src_port ] } {
+        # nothing to do as regexp filled the var
+    } elseif { [regexp {(?x)
+                 ^Dst\s+IP:\s+(.*)
+                 } $line MatchVar agent ] } {
+        set agent [ResolveHostname $agent]
+    } elseif { [regexp {(?x)
+                 ^Dst\s+Port:\s+(\d+)
+                 } $line MatchVar dst_port ] } {
+        # nothing to do as regexp filled the var
+    # check to see if this is a blank line
+    # if it is then we've reached the end of the alert and can now send it to Sguil
+    } elseif { [regexp {(?x) ^\s*$} $line] } {
+        SendAlert
+    # If we haven't matched anything specific in the OSSEC alert
+    # structure, this must be a copy of the original alert.
+    # Add it to our payload.
+    } else {
+        set payload "$line\n"
+    }
+}
+
+#
+# Send alert to Sguil once all of its lines have been parsed
+#
+proc SendAlert {} {
     global HOSTNAME IPADDR AGENT_ID NEXT_EVENT_ID AGENT_TYPE GEN_ID
     global MIN_PRIORITY
     global sguildSocketID DEBUG
     global nDate sig_id priority message src_ip user hexPayload payload agent src_port dst_port
 
-    if { [regexp {(?x)
-        ^\*\*\s+Alert
-    } $line] } {
+    # If we meet the minimum priority threshold to issue an alert,
+    # do it here.
+    if { $priority >= $MIN_PRIORITY } {
+        if {$DEBUG} {
+           puts "Found Alert: "
+           puts "\ttime: $nDate"
+           puts "\tAgent: $agent"
+           puts "\tSigID: $sig_id"
+           puts "\tPriority: $priority"
+           puts "\tSrcIP: $src_ip"
+           puts "\tUser: $user"
+           puts "\tMessage: $message"
+           puts "\tPayload: $payload"
+           puts "\tSrcPort: $src_port"
+           puts "\tDstPort: $dst_port"
+           puts "\n"
+        }
 
         # Make some last minute adjustments to format everything properly
         if {$src_ip == "(none)" || \
@@ -219,143 +297,74 @@ proc ProcessData { line } {
             $agent == "UNKNOWN" || \
             $agent == ""} { set agent "0.0.0.0" }
 
-        # If we meet the minimum priority threshold to issue an alert,
-        # do it here.
-        if { $priority >= $MIN_PRIORITY } {
-            if {$DEBUG} {
-                puts "Found Alert: "
-                puts "\ttime: $nDate"
-                puts "\tAgent: $agent"
-                puts "\tSigID: $sig_id"
-                puts "\tPriority: $priority"
-                puts "\tSrcIP: $src_ip"
-                puts "\tUser: $user"
-                puts "\tMessage: $message"
-                puts "\tPayload: $payload"
-                puts "\tSrcPort: $src_port"
-                puts "\tDstPort: $dst_port"
-                puts "\n"
-            }
+        set event [list GenericEvent 0 $priority {} \
+                       $HOSTNAME $nDate $AGENT_ID $NEXT_EVENT_ID \
+                       $NEXT_EVENT_ID [string2hex $message] \
+                       $src_ip $agent {} $src_port $dst_port \
+                       $GEN_ID $sig_id 1 [string2hex $payload]]
 
-            set event [list GenericEvent 0 $priority {} \
-                           $HOSTNAME $nDate $AGENT_ID $NEXT_EVENT_ID \
-                           $NEXT_EVENT_ID [string2hex $message] \
-                           $src_ip $agent {} $src_port $dst_port \
-                           $GEN_ID $sig_id 1 [string2hex $payload]]
+        # Send the event to sguild
+        if { $DEBUG } { puts "Sending: $event" }
+        while { [catch {puts $sguildSocketID $event} tmpError] } {
 
-            # Send the event to sguild
-            if { $DEBUG } { puts "Sending: $event" }
-            while { [catch {puts $sguildSocketID $event} tmpError] } {
+            # Send to sguild failed
+            if { $DEBUG } { puts "Send Failed: $tmpError" }
 
-                # Send to sguild failed
-                if { $DEBUG } { puts "Send Failed: $tmpError" }
+            # Close open socket
+            catch {close $sguildSocketID}
 
-                # Close open socket
-                catch {close $sguildSocketID}
+            # Reconnect loop
+            while { ![ConnectToSguilServer] } { after 15000 }
 
-                # Reconnect loop
-                while { ![ConnectToSguilServer] } { after 15000 }
-
-            }
-
-            # Sguild response should be "ConfirmEvent eventID"
-            if { [catch {gets $sguildSocketID response} readError] } {
-
-                # Couldn't read from sguild
-                if { $DEBUG } { puts "Read Failed: $readError" }
-
-                # Close open socket
-                catch {close $sguildSocketID}
-
-                # Reconnect loop
-                while { ![ConnectToSguilServer] } { after 15000 }
-                return 0
-
-            }
-            if {$DEBUG} { puts "Received: $response" }
-
-            if { [llength $response] != 2 || [lindex $response 0] != "ConfirmEvent" || [lindex $response 1] != $NEXT_EVENT_ID } {
-
-                # Send to sguild failed
-                if { $DEBUG } { puts "Recv Failed" }
-
-                # Close open socket
-                catch {close $sguildSocketID}
-
-                # Reconnect loop
-                while { ![ConnectToSguilServer] } { after 15000 }
-                return 0
-
-            }
-
-            # Success! Increment the next event id
-            incr NEXT_EVENT_ID
         }
 
-        # Now clear all these vars for the next event
-        set nDate ""
-        set sig_id ""
-        set priority ""
-        set src_ip ""
-        set user ""
-        set message ""
-        set payload ""
-        set hexPayload ""
-        set src_port ""
-        set dst_port ""
+        # Sguild response should be "ConfirmEvent eventID"
+        if { [catch {gets $sguildSocketID response} readError] } {
 
-    } else {
-        # See if this looks like a date line (the alert header, not the
-        # syslog line, which also begins with a date)
-        # look for logs sent by a OSSEC agent that should be treated as syslogs; e.g. Malwarebytes logs
-        if { ([regexp {(?x)
-#           ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(.*)->
-          ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(\(.*\)\s+)*(.*)->
-        } $line MatchVar year month day time placeholder agent]) } {
-            set nDate [clock format [clock scan "$day $month $year $time" ] -gmt true -f "%Y-%m-%d %T"]
-            # Ok, this is confusing, but the regexp can return either one
-            # or two variables, depending on the format of the input line.
-            # if the line is from a windows agent, it will usually contain
-            # "(host) X.X.X.X", but if it's from some other agent, it will
-            # usually just be one field (either a hostname or an IP address,
-            # depending on the log source).  In either case, the $agent
-            # variable ends up holding the correct value for our purposes.
-            set agent [ResolveHostname $agent]
-        } elseif { [regexp {(?x)
-                     ^Rule:\s+(\d+)\s+\(level\s+(\d+)\)\s+->\s+'(.*)'
-        } $line MatchVar sig_id priority message ] } {
-            set message "\[[string toupper $AGENT_TYPE]\] $message"
-        } elseif { [regexp {(?x)
-                      ^User:\s+(.*)
-        } $line MatchVar user ] } {
-            # We really don't have anything to do here, since we matched all
-            # our variables directly in the conditional for this block
-        } elseif { [regexp {(?x)
-                      ^Src\s+IP:\s+(.*)
-        } $line MatchVar src_ip ] } {
-            set src_ip [ResolveHostname $src_ip]
-        } elseif { [regexp {(?x)
-                      ^Src\s+Port:\s+(\d+)
-        } $line MatchVar src_port ] } {
-            # nothing to do regexp filled the var
-        } elseif { [regexp {(?x)
-                      ^Dst\s+IP:\s+(.*)
-        } $line MatchVar agent ] } {
-            set agent [ResolveHostname $agent]
-        } elseif { [regexp {(?x)
-                      ^Dst\s+Port:\s+(\d+)
-        } $line MatchVar dst_port ] } {
-            # nothing to do regexp filled the var
-        } else {
-            # If we haven't matched anything specific in the OSSEC alert
-            # structure, this must be a copy of the original alert.
-            # Add it to our payload.
-            append payload "$line\n"
+            # Couldn't read from sguild
+            if { $DEBUG } { puts "Read Failed: $readError" }
+
+            # Close open socket
+            catch {close $sguildSocketID}
+
+            # Reconnect loop
+            while { ![ConnectToSguilServer] } { after 15000 }
+            return 0
+
+        }
+        if {$DEBUG} { puts "Received: $response" }
+
+        if { [llength $response] != 2 || [lindex $response 0] != "ConfirmEvent" || [lindex $response 1] != $NEXT_EVENT_ID } {
+
+            # Send to sguild failed
+            if { $DEBUG } { puts "Recv Failed" }
+
+            # Close open socket
+            catch {close $sguildSocketID}
+
+            # Reconnect loop
+            while { ![ConnectToSguilServer] } { after 15000 }
+            return 0
+
         }
 
+        # Success! Increment the next event id
+        incr NEXT_EVENT_ID
     }
-}
 
+    # Now clear all these vars for the next event
+    set nDate ""
+    set sig_id ""
+    set priority ""
+    set src_ip ""
+    set user ""
+    set message ""
+    set payload ""
+    set hexPayload ""
+    set src_port ""
+    set dst_port ""
+    set agent ""
+}
 
 # Initialize connection to sguild
 proc ConnectToSguilServer {} {
