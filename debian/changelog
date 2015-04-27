@@ -1,3 +1,9 @@
+securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion9) precise; urgency=low
+
+  * Issue 716: tighten regex to only look for -> anchored to hostname or IP 
+
+ -- Doug Burks <doug.burks@gmail.com>  Mon, 27 Apr 2015 15:29:32 -0400
+
 securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion8) precise; urgency=low
 
   * Issue 705: ossec_agent: improvements from Brian Kellogg 

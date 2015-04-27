@@ -309,8 +309,15 @@ proc ProcessData { line } {
         # syslog line, which also begins with a date)
         # look for logs sent by a OSSEC agent that should be treated as syslogs; e.g. Malwarebytes logs
         if { ([regexp {(?x)
-#           ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(.*)->
-          ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(\(.*\)\s+)*(.*)->
+	# ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(.*)->
+	# ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(\(.*\)\s+)*(.*)->
+	# This last regex would incorrectly look for -> anywhere in the line,
+	# which would catch some logs that it shouldn't, like:
+	# 2015 Apr 27 08:54:27 WinEvtLog: Application: ERROR(100): Bonjour Service: (no user): no domain: agent001: Task Scheduling Error: m->NextScheduledSPRetry 99999
+	# Instead, we need to avoid looking for -> anywhere in the line and only look for it anchored to a hostname or IP address: 
+	# 2015 Apr 17 18:52:50 securityonion->/var/log/syslog
+	# 2015 Apr 27 12:54:26 (agent001) 192.168.2.5->WinEvtLog
+	^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(\(.*\)\s+)*(\S+)->
         } $line MatchVar year month day time placeholder agent]) } {
             set nDate [clock format [clock scan "$day $month $year $time" ] -gmt true -f "%Y-%m-%d %T"]
             # Ok, this is confusing, but the regexp can return either one
