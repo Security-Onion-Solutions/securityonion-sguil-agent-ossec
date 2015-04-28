@@ -1,3 +1,9 @@
+securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion12) precise; urgency=low
+
+  * install ossec_agent.conf to templates directory and copy if necessary 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 28 Apr 2015 14:58:49 -0400
+
 securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion11) precise; urgency=low
 
   * Fixed alert body not appending. 

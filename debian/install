@@ -1,3 +1,3 @@
 etc/nsm/ossec/ossec_agent.tcl usr/bin
-etc/nsm/ossec/ossec_agent.conf etc/nsm/ossec
+etc/nsm/ossec/ossec_agent.conf etc/nsm/templates/ossec
 etc/nsm/ossec/README etc/nsm/ossec

@@ -11,6 +11,17 @@ case "$1" in
 		rm -f /etc/nsm/ossec/ossec_agent.tcl || echo "Error removing /etc/nsm/ossec/ossec_agent.tcl"
 	fi
 
+	# check to see if /etc/nsm/ossec/ossec_agent.conf exists
+	# copy from template if necessary
+	FILE="/etc/nsm/ossec/ossec_agent.conf"
+	if [ -f $FILE ]; then
+		echo "$FILE exists, leaving alone."
+	else
+		echo "$FILE does not exist, copying."
+		TEMPLATE="/etc/nsm/templates/ossec/ossec_agent.conf"
+		cp $TEMPLATE $FILE || echo "Unable to copy $TEMPLATE to $FILE"
+	fi
+
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
