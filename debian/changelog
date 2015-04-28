@@ -1,3 +1,9 @@
+securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion11) precise; urgency=low
+
+  * Fixed alert body not appending. 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 28 Apr 2015 14:36:14 -0400
+
 securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion10) precise; urgency=low
 
   * Issue 717: ossec_agent: send alerts to sguild immediately instead of waiting for next alert 

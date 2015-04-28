@@ -5,3 +5,4 @@ fix-if-statement
 Issue-705:-ossec_agent:-improvements-from-Brian-Kellogg
 Issue-716:-tighten-regex-to-only-look-for-->-anchored-to-hostname-or-IP
 Issue-717:-ossec_agent:-send-alerts-to-sguild-immediately-instead-of-waiting-for-next-alert
+Fixed-alert-body-not-appending.
