@@ -257,7 +257,7 @@ proc ProcessData { line } {
     # structure, this must be a copy of the original alert.
     # Add it to our payload.
     } else {
-        set payload "$line\n"
+        append payload "$line\n"
     }
 }
 
