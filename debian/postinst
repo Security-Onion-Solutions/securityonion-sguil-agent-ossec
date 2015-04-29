@@ -23,8 +23,8 @@ case "$1" in
 	fi
 
 	# restart if currently running
-	if pgrep -f ossec_agent.tcl >/dev/null 2>&1; then
-		/usr/sbin/nsm_sensor_ps-restart --only-ossec-agent || echo "Error restarting ossec_agent.tcl"
+	if pgrep -f ossec_agent.tcl >/dev/null 2>&1 && [ -x /usr/bin/setsid ] && [ -x /usr/sbin/nsm_sensor_ps-restart ] && [ -f /etc/nsm/securityonion.conf ]; then
+		/usr/bin/setsid /usr/sbin/nsm_sensor_ps-restart --only-ossec-agent || echo "Error restarting ossec_agent.tcl"
 	fi
 
     ;;

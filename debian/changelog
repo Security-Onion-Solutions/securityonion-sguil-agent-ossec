@@ -1,3 +1,9 @@
+securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion14) precise; urgency=low
+
+  * restart using setsid 
+
+ -- Doug Burks <doug.burks@gmail.com>  Wed, 29 Apr 2015 08:29:41 -0400
+
 securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion13) precise; urgency=low
 
   * restart ossec_agent.tcl if running 
