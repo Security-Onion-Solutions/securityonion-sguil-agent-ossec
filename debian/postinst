@@ -22,6 +22,11 @@ case "$1" in
 		cp $TEMPLATE $FILE || echo "Unable to copy $TEMPLATE to $FILE"
 	fi
 
+	# restart if currently running
+	if pgrep -f ossec_agent.tcl >/dev/null 2>&1; then
+		/usr/sbin/nsm_sensor_ps-restart --only-ossec-agent || echo "Error restarting ossec_agent.tcl"
+	fi
+
     ;;
 
     abort-upgrade|abort-remove|abort-deconfigure)
