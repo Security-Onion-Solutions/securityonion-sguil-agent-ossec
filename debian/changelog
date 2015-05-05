@@ -1,3 +1,9 @@
+securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion15) precise; urgency=low
+
+  * more fixes from Brian Kellogg 
+
+ -- Doug Burks <doug.burks@gmail.com>  Tue, 05 May 2015 14:28:26 -0400
+
 securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion14) precise; urgency=low
 
   * restart using setsid 
