@@ -212,8 +212,8 @@ proc ProcessData { line } {
     } elseif { ([regexp {(?x)
 #           ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(.*)->
 #         ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(\(.*\)\s+)*(.*)->
-                 ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(\(.*\)\s+)*(\S+)->
-                 } $line MatchVar year month day time placeholder agent]) } {
+                 ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(\(.*\)\s+)*(\S+)->(\d+.\d+.\d+.\d+)*
+                 } $line MatchVar year month day time placeholder agent SyslogSource]) } {
         set nDate [clock format [clock scan "$day $month $year $time" ] -gmt true -f "%Y-%m-%d %T"]
         # Ok, this is confusing, but the regexp can return either one
         # or two variables, depending on the format of the input line.
@@ -222,7 +222,13 @@ proc ProcessData { line } {
         # usually just be one field (either a hostname or an IP address,
         # depending on the log source).  In either case, the $agent
         # variable ends up holding the correct value for our purposes.
-        set agent [ResolveHostname $agent]
+        # SyslogSource will pull out the IP of the device sending a 
+        # syslog to OSSEC.
+        if {[string length $SyslogSource] != 0} {
+            set agent $SyslogSource
+        } else {
+            set agent [ResolveHostname $agent]
+        }
     } elseif { [regexp {(?x)
                  ^Rule:\s+(\d+)\s+\(level\s+(\d+)\)\s+->\s+'(.*)'
                  } $line MatchVar sig_id priority message ] } {
