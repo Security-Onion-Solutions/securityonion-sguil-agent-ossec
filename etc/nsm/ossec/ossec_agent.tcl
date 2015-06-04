@@ -213,7 +213,7 @@ proc ProcessData { line } {
 #           ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(.*)->
 #         ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(\(.*\)\s+)*(.*)->
                  ^(\d\d\d\d)\s+(...)\s+(\d\d)\s+(\d\d:\d\d:\d\d)\s+(\(.*\)\s+)*(\S+)->(\d+.\d+.\d+.\d+)*
-                 } $line MatchVar year month day time placeholder agent SyslogSource]) } {
+                 } $line MatchVar year month day time placeholder agent syslog_source]) } {
         set nDate [clock format [clock scan "$day $month $year $time" ] -gmt true -f "%Y-%m-%d %T"]
         # Ok, this is confusing, but the regexp can return either one
         # or two variables, depending on the format of the input line.
@@ -224,8 +224,8 @@ proc ProcessData { line } {
         # variable ends up holding the correct value for our purposes.
         # SyslogSource will pull out the IP of the device sending a 
         # syslog to OSSEC.
-        if {[string length $SyslogSource] != 0} {
-            set agent $SyslogSource
+        if {[string length $syslog_source] != 0} {
+            set agent $syslog_source
         } else {
             set agent [ResolveHostname $agent]
         }
