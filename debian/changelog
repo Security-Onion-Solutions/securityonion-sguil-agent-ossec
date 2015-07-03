@@ -1,3 +1,9 @@
+securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion16) precise; urgency=low
+
+  * ossec_agent: Add source of syslog as destination IP for Sguil alert #760 
+
+ -- Doug Burks <doug.burks@gmail.com>  Fri, 03 Jul 2015 18:24:45 -0400
+
 securityonion-sguil-agent-ossec (20120726-0ubuntu0securityonion15) precise; urgency=low
 
   * more fixes from Brian Kellogg 

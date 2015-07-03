@@ -7,3 +7,4 @@ Issue-716:-tighten-regex-to-only-look-for-->-anchored-to-hostname-or-IP
 Issue-717:-ossec_agent:-send-alerts-to-sguild-immediately-instead-of-waiting-for-next-alert
 Fixed-alert-body-not-appending.
 more-fixes-from-Brian-Kellogg
+ossec_agent:-Add-source-of-syslog-as-destination-IP-for-Sguil-alert-#760
