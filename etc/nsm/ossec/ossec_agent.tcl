@@ -204,7 +204,16 @@ proc ProcessData { line } {
 
     # We do not care about the first line of an alert so find it and forget it
     if { [regexp {(?x) ^\*\*\s+Alert} $line] } {
-        # nothing to do as we ignore this line
+        # if the timer is active and we've just seen another alert, 
+	# we will cancel the timer and send our alert now.
+        if {![catch {after info $::alertTimer}]} {
+           after cancel $::alertTimer
+           SendAlert
+        }
+        # We set a timer -- we will send this alert after a reasonable time delay,
+        # if we don't receive another alert before the timer ends.
+        set ::alertTimer [after 100 SendAlert]
+	# nothing to do as we ignore this line
 
         # See if this looks like a date line (the alert header, not the
         # syslog line, which also begins with a date)
@@ -243,8 +252,8 @@ proc ProcessData { line } {
         # nothing to do as regexp filled the var
     # check to see if this is a blank line
     # if it is then we've reached the end of the alert and can now send it to Sguil
-    } elseif { [regexp {(?x) ^\s*$} $line] } {
-        SendAlert
+#    } elseif { [regexp {(?x) ^\s*$} $line] } {
+#	SendAlert
     # If we haven't matched anything specific in the OSSEC alert
     # structure, this must be a copy of the original alert.
     # Add it to our payload.
